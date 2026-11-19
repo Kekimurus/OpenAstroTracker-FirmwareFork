@@ -267,6 +267,10 @@ class Mount
     // Get the number of hours we've been tracking
     float getTrackedHours() const;
 
+    // True when the DEC axis is turned through the pole (the flipped slew solutions). This is the mount's
+    // pointing state: through the pole = ASCOM pierWest, otherwise pierEast. Reported by :Gm#.
+    bool isThroughThePole() const;
+
     // Set the HA time (HA is derived from LST, the setter calculates and sets LST)
     void setHA(const DayTime &haTime);
     const DayTime HA() const;

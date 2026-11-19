@@ -115,3 +115,59 @@ TEST(UntrackedRaHoursTest, CatchUpCancelsTheSlewTime)
     // A 20 s slew whose catch-up (20 s) has already been subtracted leaves nothing
     EXPECT_NEAR(0.0f, core::untrackedRaHours(-20.0f / 3600.0f, 20000UL), 1e-6f);
 }
+
+// ---- Pointing state (:Gm#) ----------------------------------------------------
+
+using core::isThroughThePole;
+using core::mechanicalDecDegrees;
+using core::PierSide;
+using core::pierSideFromMechanicalDec;
+
+TEST(PierSideTest, MechanicalDecFromStepsAndSyncOffset)
+{
+    EXPECT_FLOAT_EQ(45.0f, mechanicalDecDegrees(22500, 500.0f, 0.0f));
+    EXPECT_FLOAT_EQ(-30.0f, mechanicalDecDegrees(-15000, 500.0f, 0.0f));
+    // A sync offset moves the zero, as in currentRA()/currentDEC().
+    EXPECT_FLOAT_EQ(-1.0f, mechanicalDecDegrees(500, 500.0f, -2.0f));
+}
+
+TEST(PierSideTest, HomeIsNormalPointingState)
+{
+    EXPECT_FALSE(isThroughThePole(0.0f));
+    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(0.0f));
+}
+
+TEST(PierSideTest, NegativeMechanicalDecIsThroughThePole)
+{
+    EXPECT_TRUE(isThroughThePole(-0.01f));
+    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(-60.0f));
+    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(60.0f));
+}
+
+TEST(PierSideTest, Solution1KeepsNormalStateAndFlippedSolutionsGoThroughThePole)
+{
+    // Ties the pointing state to the slew solution selector: the flipped solutions are the ones that
+    // negate DEC, and those must read as through the pole; the direct solution must not.
+    const float decStepsPerDegree = 500.0f;
+
+    SlewResult direct = calculateStepperPositions(makeGeo(3.0f, 45.0f, 2.0f));
+    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(mechanicalDecDegrees(direct.targetDECSteps, decStepsPerDegree, 0.0f)));
+
+    SlewResult upper = calculateStepperPositions(makeGeo(4.0f, 30.0f, 7.0f));
+    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(mechanicalDecDegrees(upper.targetDECSteps, decStepsPerDegree, 0.0f)));
+
+    SlewResult lower = calculateStepperPositions(makeGeo(-4.0f, 30.0f, -7.0f));
+    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(mechanicalDecDegrees(lower.targetDECSteps, decStepsPerDegree, 0.0f)));
+}
+
+TEST(PierSideTest, TrackingAcrossTheMeridianDoesNotChangeTheState)
+{
+    // The same direct-solution DEC is kept while the target drifts from east to west of the meridian:
+    // only the RA ring moves, so the reported side must not flip (the old hour-angle guess did).
+    const float decStepsPerDegree = 500.0f;
+    SlewResult eastOfMeridian     = calculateStepperPositions(makeGeo(1.0f, 45.0f, 1.0f));
+    SlewResult westOfMeridian     = calculateStepperPositions(makeGeo(1.0f, 45.0f, -1.0f));
+    EXPECT_EQ(eastOfMeridian.targetDECSteps, westOfMeridian.targetDECSteps);
+    EXPECT_EQ(pierSideFromMechanicalDec(mechanicalDecDegrees(eastOfMeridian.targetDECSteps, decStepsPerDegree, 0.0f)),
+              pierSideFromMechanicalDec(mechanicalDecDegrees(westOfMeridian.targetDECSteps, decStepsPerDegree, 0.0f)));
+}

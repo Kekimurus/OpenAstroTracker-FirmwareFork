@@ -49,4 +49,19 @@ float untrackedRaHours(float completedOffHours, unsigned long currentOffMs)
     return (completedOffHours + static_cast<float>(currentOffMs) / 3600000.0f) * siderealHoursPerSolarHour;
 }
 
+float mechanicalDecDegrees(long decSteps, float stepsPerDECDegree, float zeroPosDEC)
+{
+    return (static_cast<float>(decSteps) / stepsPerDECDegree) + zeroPosDEC;  // u-steps / u-steps/deg = deg
+}
+
+bool isThroughThePole(float mechanicalDecDegrees)
+{
+    return mechanicalDecDegrees < 0.0f;
+}
+
+PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees)
+{
+    return isThroughThePole(mechanicalDecDegrees) ? PierSide::West : PierSide::East;
+}
+
 }  // namespace core

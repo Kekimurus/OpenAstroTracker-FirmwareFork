@@ -80,6 +80,19 @@ void handleMeadeGet(MeadeResponse &r, const char *s, IMeadeGetHandlers &h)
         case 'X':
             writeCString(r, h.onMountStatus());
             return;
+        case 'm':
+            switch (h.onPierSide())
+            {
+                case MeadePierSide::East:
+                    writeCString(r, "E");
+                    return;
+                case MeadePierSide::West:
+                    writeCString(r, "W");
+                    return;
+                default:
+                    writeCString(r, "N");
+                    return;
+            }
         case 't':
             writeLatitude(r, h.onSiteLatitude());
             return;

@@ -41,6 +41,7 @@ class FakeHandlers : public meade::IMeadeGetHandlers
     meade::MeadeLocalDate localDate    = {3, 7, 2024};
     meade::MeadeClockFormat clockFmt   = meade::MeadeClockFormat::Hours24;
     meade::MeadeTrackingRate trackRate = meade::MeadeTrackingRate::Sidereal;
+    meade::MeadePierSide pierSide      = meade::MeadePierSide::East;
 
     char siteScratch[8] = {0};
 
@@ -78,6 +79,11 @@ class FakeHandlers : public meade::IMeadeGetHandlers
     {
         lastCall = "status";
         return status;
+    }
+    meade::MeadePierSide onPierSide() override
+    {
+        lastCall = "pierSide";
+        return pierSide;
     }
     bool onIsSlewing() override
     {
@@ -286,6 +292,30 @@ TEST(MeadeGet, mount_status_passes_through)
     h.status = "Idle,---,0,0";
     EXPECT_STREQ("Idle,---,0,0#", dispatch("X", h));
     EXPECT_STREQ("status", h.lastCall);
+}
+
+TEST(MeadeGet, pier_side_east_west_unknown)
+{
+    FakeHandlers h;
+    h.pierSide = meade::MeadePierSide::East;
+    EXPECT_STREQ("E#", dispatch("m", h));
+    EXPECT_STREQ("pierSide", h.lastCall);
+    h.pierSide = meade::MeadePierSide::West;
+    EXPECT_STREQ("W#", dispatch("m", h));
+    h.pierSide = meade::MeadePierSide::Unknown;
+    EXPECT_STREQ("N#", dispatch("m", h));
+}
+
+TEST(MeadeGet, pier_side_is_case_sensitive_single_char)
+{
+    // :GM# is the first site name, not the pier side.
+    FakeHandlers h;
+    EXPECT_STREQ("OAT1#", dispatch("M", h));
+    EXPECT_STREQ("siteName", h.lastCall);
+    // Longer suffixes starting with 'm' are not the pier side either.
+    h.lastCall = nullptr;
+    EXPECT_STREQ("", dispatch("mx", h));
+    EXPECT_EQ(nullptr, h.lastCall);
 }
 
 TEST(MeadeGet, is_slewing_emits_zero_one)

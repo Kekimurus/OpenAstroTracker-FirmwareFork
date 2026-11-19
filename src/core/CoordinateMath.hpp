@@ -37,4 +37,23 @@ SlewResult calculateStepperPositions(const SlewGeometry &geo);
 /// currentOffMs:      length of the tracker-off period that is still running (0 while tracking).
 float untrackedRaHours(float completedOffHours, unsigned long currentOffMs);
 
+/// Mechanical DEC angle in degrees, from the DEC stepper position. 0 is the pole (home).
+/// Negative values mean the DEC axis is turned through the pole: this is how the flipped slew solutions
+/// (2 and 3 in calculateStepperPositions) leave the mount, and why currentRA() adds 12h for them.
+float mechanicalDecDegrees(long decSteps, float stepsPerDECDegree, float zeroPosDEC);
+
+/// True when the DEC axis is turned through the pole (mechanical DEC below 0).
+bool isThroughThePole(float mechanicalDecDegrees);
+
+/// Pointing state as ASCOM reports it in SideOfPier.
+enum class PierSide
+{
+    East,  /// Normal pointing state
+    West,  /// Through-the-pole pointing state
+};
+
+/// Pointing state from the mechanical DEC angle. It changes only when the DEC axis is turned through the pole,
+/// never when the target merely crosses the meridian while tracking.
+PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees);
+
 }  // namespace core

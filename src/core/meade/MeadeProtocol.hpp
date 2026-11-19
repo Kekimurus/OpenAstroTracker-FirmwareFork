@@ -236,6 +236,20 @@
 //------------------------------------------------------------------
 // GET EXTENSIONS
 //
+// :Gm#
+//      Description:
+//        Get Side of Pier
+//      Information:
+//        Reports the mount's pointing state, as ASCOM's SideOfPier expects it. The pointing state changes only
+//        when the DEC axis is turned through the pole, which the firmware does for targets beyond the RA ring
+//        limits. It does not change when a target crosses the meridian while tracking.
+//      Returns:
+//        "E#" for the normal pointing state (ASCOM pierEast)
+//        "W#" for the through-the-pole pointing state (ASCOM pierWest)
+//        "N#" if the pointing state is not known
+//      Remarks:
+//        Same reply format as OnStep's :Gm#.
+//
 // :GIS#
 //      Description:
 //        Get DEC or RA Slewing

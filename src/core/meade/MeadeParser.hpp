@@ -217,6 +217,14 @@ enum class MeadeClockFormat
     Hours24,
 };
 
+/** @brief Pointing state reported by `:Gm#` ("E", "W" or "N"). */
+enum class MeadePierSide
+{
+    East,     ///< Normal pointing state ("E#")
+    West,     ///< Through-the-pole pointing state ("W#")
+    Unknown,  ///< Not known ("N#")
+};
+
 /** @brief Tracking rate selector; controls wire bytes for `:GT#`. */
 enum class MeadeTrackingRate
 {
@@ -247,6 +255,8 @@ class IMeadeGetHandlers
     virtual DecCoordinate onTargetDec()  = 0;
 
     virtual const char *onMountStatus() = 0;
+
+    virtual MeadePierSide onPierSide() = 0;
 
     virtual bool onIsSlewing()  = 0;
     virtual bool onIsTracking() = 0;

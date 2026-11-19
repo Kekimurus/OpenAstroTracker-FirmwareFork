@@ -161,6 +161,11 @@ const char *MeadeCommandProcessor::onMountStatus()
     return _mountStatusScratch.c_str();
 }
 
+meade::MeadePierSide MeadeCommandProcessor::onPierSide()
+{
+    return _mount->isThroughThePole() ? meade::MeadePierSide::West : meade::MeadePierSide::East;
+}
+
 bool MeadeCommandProcessor::onIsSlewing()
 {
     return _mount->isSlewingRAorDEC();

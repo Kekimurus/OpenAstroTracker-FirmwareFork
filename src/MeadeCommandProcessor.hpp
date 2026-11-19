@@ -29,6 +29,7 @@ class MeadeCommandProcessor : private oat::core::meade::IMeadeHandlers
     oat::core::meade::DecCoordinate onCurrentDec() override;
     oat::core::meade::DecCoordinate onTargetDec() override;
     const char *onMountStatus() override;
+    oat::core::meade::MeadePierSide onPierSide() override;
     bool onIsSlewing() override;
     bool onIsTracking() override;
     bool onIsGuiding() override;

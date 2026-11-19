@@ -1428,6 +1428,18 @@ Declination &Mount::targetDEC()
 
 /////////////////////////////////
 //
+// isThroughThePole
+//
+/////////////////////////////////
+// The DEC axis is turned through the pole when its mechanical angle is below 0 (home is 0, at the pole).
+// Only the flipped slew solutions do that; tracking across the meridian does not change it.
+bool Mount::isThroughThePole() const
+{
+    return core::isThroughThePole(core::mechanicalDecDegrees(_stepperDEC->currentPosition(), _stepsPerDECDegree, _zeroPosDEC));
+}
+
+/////////////////////////////////
+//
 // currentRA
 //
 /////////////////////////////////
@@ -1440,8 +1452,7 @@ const DayTime Mount::currentRA() const
 
     hourPos += zeroPosRA().getTotalHours();
 
-    const float degreePos = (_stepperDEC->currentPosition() / _stepsPerDECDegree) + _zeroPosDEC;
-    if (degreePos < 0)
+    if (isThroughThePole())
     {
         hourPos += 12;
         if (hourPos > 24)
