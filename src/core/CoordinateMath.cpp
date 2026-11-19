@@ -59,9 +59,18 @@ bool isThroughThePole(float mechanicalDecDegrees)
     return mechanicalDecDegrees < 0.0f;
 }
 
-PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees)
+PierSide pierSideFromPointingState(bool throughThePole, MountGeometry geometry)
 {
-    return isThroughThePole(mechanicalDecDegrees) ? PierSide::West : PierSide::East;
+    if (geometry == MountGeometry::GermanEquatorial)
+    {
+        return throughThePole ? PierSide::East : PierSide::West;
+    }
+    return throughThePole ? PierSide::West : PierSide::East;
+}
+
+PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees, MountGeometry geometry)
+{
+    return pierSideFromPointingState(isThroughThePole(mechanicalDecDegrees), geometry);
 }
 
 }  // namespace core

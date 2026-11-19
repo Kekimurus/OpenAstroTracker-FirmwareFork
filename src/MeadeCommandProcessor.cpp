@@ -6,6 +6,7 @@
 #include "MeadeCommandProcessor.hpp"
 #include "WifiControl.hpp"
 #include "Gyro.hpp"
+#include "core/CoordinateMath.hpp"
 #include "core/meade/MeadeParser.hpp"
 
 #include <stdarg.h>
@@ -163,7 +164,14 @@ const char *MeadeCommandProcessor::onMountStatus()
 
 meade::MeadePierSide MeadeCommandProcessor::onPierSide()
 {
-    return _mount->isThroughThePole() ? meade::MeadePierSide::West : meade::MeadePierSide::East;
+#if defined(OAM) || defined(OAE)
+    // Home RA is shifted by 6h on these mounts (see Mount::setHome), so they slew like a German equatorial.
+    const core::MountGeometry geometry = core::MountGeometry::GermanEquatorial;
+#else
+    const core::MountGeometry geometry = core::MountGeometry::Tracker;
+#endif
+    return core::pierSideFromPointingState(_mount->isThroughThePole(), geometry) == core::PierSide::West ? meade::MeadePierSide::West
+                                                                                                         : meade::MeadePierSide::East;
 }
 
 bool MeadeCommandProcessor::onIsSlewing()

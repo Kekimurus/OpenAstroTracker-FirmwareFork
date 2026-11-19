@@ -45,15 +45,31 @@ float mechanicalDecDegrees(long decSteps, float stepsPerDECDegree, float zeroPos
 /// True when the DEC axis is turned through the pole (mechanical DEC below 0).
 bool isThroughThePole(float mechanicalDecDegrees);
 
-/// Pointing state as ASCOM reports it in SideOfPier.
+/// Pointing state as ASCOM reports it in SideOfPier. ASCOM's normal state (pierEast) is the OTA on the east
+/// side of the pier, counterweights down, observing west.
 enum class PierSide
 {
-    East,  /// Normal pointing state
-    West,  /// Through-the-pole pointing state
+    East,
+    West,
 };
 
-/// Pointing state from the mechanical DEC angle. It changes only when the DEC axis is turned through the pole,
-/// never when the target merely crosses the meridian while tracking.
-PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees);
+/// How the mount's home position relates to the sky, which decides what the firmware's direct slew solution is.
+enum class MountGeometry
+{
+    /// OAT: home is not shifted, so the direct solution covers both sides of the meridian (like a fork mount).
+    /// It is ASCOM's normal state; only the flipped solutions near the RA ring limits are through the pole.
+    Tracker,
+    /// OAM, OAE: home RA is shifted by 6h, so the mount works as a German equatorial: the direct solution is
+    /// used east of the meridian (OTA west of the pier, observing east: pierWest) and the flipped one west of it
+    /// (pierEast). With the default RA limits the switch happens about 1h before the meridian.
+    GermanEquatorial,
+};
+
+/// Side of pier from the mechanical DEC angle and the mount geometry. It changes only when the DEC axis is turned
+/// through the pole, never while a target is merely tracked across the meridian.
+PierSide pierSideFromMechanicalDec(float mechanicalDecDegrees, MountGeometry geometry);
+
+/// Same, for a caller that already knows whether the DEC axis is through the pole.
+PierSide pierSideFromPointingState(bool throughThePole, MountGeometry geometry);
 
 }  // namespace core

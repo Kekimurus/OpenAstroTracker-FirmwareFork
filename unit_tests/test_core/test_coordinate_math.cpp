@@ -116,12 +116,42 @@ TEST(UntrackedRaHoursTest, CatchUpCancelsTheSlewTime)
     EXPECT_NEAR(0.0f, core::untrackedRaHours(-20.0f / 3600.0f, 20000UL), 1e-6f);
 }
 
-// ---- Pointing state (:Gm#) ----------------------------------------------------
+// ---- Side of pier (:Gm#) ----------------------------------------------------
 
 using core::isThroughThePole;
 using core::mechanicalDecDegrees;
+using core::MountGeometry;
 using core::PierSide;
 using core::pierSideFromMechanicalDec;
+using core::pierSideFromPointingState;
+
+namespace
+{
+const float kDecStepsPerDegree = 500.0f;
+
+// Side of pier after a slew, as the firmware would report it: the solution selector decides the DEC steps,
+// the DEC sign decides the pointing state, the geometry turns that into an ASCOM side.
+PierSide sideAfterSlew(const SlewGeometry &geo, MountGeometry geometry)
+{
+    SlewResult result = calculateStepperPositions(geo);
+    return pierSideFromMechanicalDec(mechanicalDecDegrees(result.targetDECSteps, kDecStepsPerDegree, 0.0f), geometry);
+}
+
+// Geometry for a target at hour angle `ha` with the firmware's default northern limits (left 5h, right 7h).
+// OAM/OAE shift their home RA by 6h (Mount::setHome), so the delta to home is -ha - 6 there; on the OAT it is -ha.
+SlewGeometry atHourAngle(float ha, float homeShiftHours)
+{
+    float delta = -ha - homeShiftHours;
+    while (delta > 12.0f)
+        delta -= 24.0f;
+    while (delta < -12.0f)
+        delta += 24.0f;
+    SlewGeometry geo = makeGeo(delta, 45.0f, delta);
+    geo.raLimitL     = -5.0f;
+    geo.raLimitR     = 7.0f;
+    return geo;
+}
+}  // namespace
 
 TEST(PierSideTest, MechanicalDecFromStepsAndSyncOffset)
 {
@@ -131,43 +161,54 @@ TEST(PierSideTest, MechanicalDecFromStepsAndSyncOffset)
     EXPECT_FLOAT_EQ(-1.0f, mechanicalDecDegrees(500, 500.0f, -2.0f));
 }
 
-TEST(PierSideTest, HomeIsNormalPointingState)
+TEST(PierSideTest, ThroughThePoleIsNegativeMechanicalDec)
 {
-    EXPECT_FALSE(isThroughThePole(0.0f));
-    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(0.0f));
-}
-
-TEST(PierSideTest, NegativeMechanicalDecIsThroughThePole)
-{
+    EXPECT_FALSE(isThroughThePole(0.0f));  // home
+    EXPECT_FALSE(isThroughThePole(60.0f));
     EXPECT_TRUE(isThroughThePole(-0.01f));
-    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(-60.0f));
-    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(60.0f));
 }
 
-TEST(PierSideTest, Solution1KeepsNormalStateAndFlippedSolutionsGoThroughThePole)
+TEST(PierSideTest, GeometryDecidesWhichStateIsWhichSide)
 {
-    // Ties the pointing state to the slew solution selector: the flipped solutions are the ones that
-    // negate DEC, and those must read as through the pole; the direct solution must not.
-    const float decStepsPerDegree = 500.0f;
-
-    SlewResult direct = calculateStepperPositions(makeGeo(3.0f, 45.0f, 2.0f));
-    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(mechanicalDecDegrees(direct.targetDECSteps, decStepsPerDegree, 0.0f)));
-
-    SlewResult upper = calculateStepperPositions(makeGeo(4.0f, 30.0f, 7.0f));
-    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(mechanicalDecDegrees(upper.targetDECSteps, decStepsPerDegree, 0.0f)));
-
-    SlewResult lower = calculateStepperPositions(makeGeo(-4.0f, 30.0f, -7.0f));
-    EXPECT_EQ(PierSide::West, pierSideFromMechanicalDec(mechanicalDecDegrees(lower.targetDECSteps, decStepsPerDegree, 0.0f)));
+    EXPECT_EQ(PierSide::East, pierSideFromPointingState(false, MountGeometry::Tracker));
+    EXPECT_EQ(PierSide::West, pierSideFromPointingState(true, MountGeometry::Tracker));
+    EXPECT_EQ(PierSide::West, pierSideFromPointingState(false, MountGeometry::GermanEquatorial));
+    EXPECT_EQ(PierSide::East, pierSideFromPointingState(true, MountGeometry::GermanEquatorial));
+    EXPECT_EQ(pierSideFromPointingState(true, MountGeometry::GermanEquatorial),
+              pierSideFromMechanicalDec(-10.0f, MountGeometry::GermanEquatorial));
 }
 
-TEST(PierSideTest, TrackingAcrossTheMeridianDoesNotChangeTheState)
+TEST(PierSideTest, OatDirectSolutionIsNormalOnBothSidesOfTheMeridian)
 {
-    // The same direct-solution DEC is kept while the target drifts from east to west of the meridian:
-    // only the RA ring moves, so the reported side must not flip (the old hour-angle guess did).
-    const float decStepsPerDegree = 500.0f;
-    SlewResult eastOfMeridian     = calculateStepperPositions(makeGeo(1.0f, 45.0f, 1.0f));
-    SlewResult westOfMeridian     = calculateStepperPositions(makeGeo(1.0f, 45.0f, -1.0f));
-    EXPECT_EQ(eastOfMeridian.targetDECSteps, westOfMeridian.targetDECSteps);
-    EXPECT_EQ(pierSideFromMechanicalDec(mechanicalDecDegrees(eastOfMeridian.targetDECSteps, decStepsPerDegree, 0.0f)),
-              pierSideFromMechanicalDec(mechanicalDecDegrees(westOfMeridian.targetDECSteps, decStepsPerDegree, 0.0f)));
+    for (float ha : {-4.0f, -0.5f, 0.5f, 4.0f})
+    {
+        EXPECT_EQ(PierSide::East, sideAfterSlew(atHourAngle(ha, 0.0f), MountGeometry::Tracker)) << "HA " << ha;
+    }
+    // Beyond the RA ring limits the firmware goes through the pole.
+    EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(-8.0f, 0.0f), MountGeometry::Tracker));
+    EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(5.5f, 0.0f), MountGeometry::Tracker));
+}
+
+TEST(PierSideTest, OamOaeSlewLikeAGermanEquatorial)
+{
+    // ASCOM: observing east = OTA on the west side (pierWest), observing west = pierEast.
+    for (float ha : {-8.0f, -4.0f, -1.5f})
+    {
+        EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(ha, 6.0f), MountGeometry::GermanEquatorial)) << "HA " << ha;
+    }
+    for (float ha : {-0.5f, 0.5f, 3.0f, 5.5f})
+    {
+        EXPECT_EQ(PierSide::East, sideAfterSlew(atHourAngle(ha, 6.0f), MountGeometry::GermanEquatorial)) << "HA " << ha;
+    }
+}
+
+TEST(PierSideTest, TrackingAwayFromTheSlewPointDoesNotChangeTheSide)
+{
+    // Tracking only turns the RA ring; the DEC axis keeps the steps of the solution it was slewed to. The side
+    // reported must therefore stay put until the next slew, whatever the hour angle does meanwhile.
+    SlewResult slewed = calculateStepperPositions(atHourAngle(-0.5f, 0.0f));  // OAT, just east of the meridian
+    const float dec   = mechanicalDecDegrees(slewed.targetDECSteps, kDecStepsPerDegree, 0.0f);
+    EXPECT_EQ(PierSide::East, pierSideFromMechanicalDec(dec, MountGeometry::Tracker));
+    // A slew to the same target an hour later (now west of the meridian) still picks the direct solution.
+    EXPECT_EQ(slewed.targetDECSteps, calculateStepperPositions(atHourAngle(0.5f, 0.0f)).targetDECSteps);
 }

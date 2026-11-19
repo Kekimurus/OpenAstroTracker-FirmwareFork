@@ -244,11 +244,15 @@
 //        when the DEC axis is turned through the pole, which the firmware does for targets beyond the RA ring
 //        limits. It does not change when a target crosses the meridian while tracking.
 //      Returns:
-//        "E#" for the normal pointing state (ASCOM pierEast)
-//        "W#" for the through-the-pole pointing state (ASCOM pierWest)
-//        "N#" if the pointing state is not known
+//        "E#" for ASCOM pierEast (OTA on the east side of the pier, observing west)
+//        "W#" for ASCOM pierWest (OTA on the west side of the pier, observing east)
+//        "N#" if the side of pier is not known
 //      Remarks:
 //        Same reply format as OnStep's :Gm#.
+//        OAM, OAE: these slew like a German equatorial. East targets use the direct solution ("W#"), west targets
+//        the flipped one ("E#"); with the default RA limits the switch is about 1h before the meridian.
+//        OAT: the direct solution covers both sides of the meridian ("E#"); only the flipped solutions near the
+//        RA ring limits report "W#".
 //
 // :GIS#
 //      Description:
