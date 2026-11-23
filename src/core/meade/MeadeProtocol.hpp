@@ -250,7 +250,8 @@
 //      Remarks:
 //        Same reply format as OnStep's :Gm#.
 //        OAM, OAE: these slew like a German equatorial. East targets use the direct solution ("W#"), west targets
-//        the flipped one ("E#"); with the default RA limits the switch is about 1h before the meridian.
+//        the flipped one ("E#"); with the default RA limits the switch is about 1h before the meridian in the
+//        northern hemisphere (and about 1h after the meridian in the southern hemisphere).
 //        OAT: the direct solution covers both sides of the meridian ("E#"); only the flipped solutions near the
 //        RA ring limits report "W#".
 //

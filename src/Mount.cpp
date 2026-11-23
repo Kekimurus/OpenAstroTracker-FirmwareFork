@@ -1476,8 +1476,7 @@ const DayTime Mount::currentRA() const
 // Get current DEC value.
 const Declination Mount::currentDEC() const
 {
-    // u-steps / u-steps/deg = deg
-    const float degreePos = (_stepperDEC->currentPosition() / _stepsPerDECDegree) + _zeroPosDEC;  // u-steps / u-steps/deg = deg
+    const float degreePos = core::mechanicalDecDegrees(_stepperDEC->currentPosition(), _stepsPerDECDegree, _zeroPosDEC);
     Declination dec(degreePos);
 
     return dec;
@@ -1521,7 +1520,7 @@ void Mount::syncPosition(DayTime ra, Declination dec)
     LOG(DEBUG_COORD_CALC, "[MOUNT]: syncPosition: ZeroPosRA is now %f", _zeroPosRA.getTotalHours());
 
     // Adjust the home DEC position by the delta between the sync'd target and current position.
-    const float degreePos = (_stepperDEC->currentPosition() / _stepsPerDECDegree) + _zeroPosDEC;  // u-steps / u-steps/deg = deg
+    const float degreePos = core::mechanicalDecDegrees(_stepperDEC->currentPosition(), _stepsPerDECDegree, _zeroPosDEC);
     LOG(DEBUG_COORD_CALC, "[MOUNT]: syncPosition: DEC degreePos is: %f", degreePos);
 
     // Dec totalhours can be plus or minus the distance from the pole (because it keeps track of whether we are upwards or downwards from the pole)
@@ -1532,7 +1531,7 @@ void Mount::syncPosition(DayTime ra, Declination dec)
         decAdjust,
         dec.getTotalDegrees(),
         currentDEC().getTotalDegrees());
-    if (degreePos < 0)
+    if (core::isThroughThePole(degreePos))
     {
         LOG(DEBUG_COORD_CALC, "[MOUNT]: syncPosition: Inverted DecAdjust to: %f (below home pos)", decAdjust);
         decAdjust = -decAdjust;

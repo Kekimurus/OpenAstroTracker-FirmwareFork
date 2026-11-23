@@ -137,9 +137,10 @@ PierSide sideAfterSlew(const SlewGeometry &geo, MountGeometry geometry)
     return pierSideFromMechanicalDec(mechanicalDecDegrees(result.targetDECSteps, kDecStepsPerDegree, 0.0f), geometry);
 }
 
-// Geometry for a target at hour angle `ha` with the firmware's default northern limits (left 5h, right 7h).
-// OAM/OAE shift their home RA by 6h (Mount::setHome), so the delta to home is -ha - 6 there; on the OAT it is -ha.
-SlewGeometry atHourAngle(float ha, float homeShiftHours)
+// Geometry for a target at hour angle `ha` with the firmware's default RA limits (left 5h, right 7h; swapped in
+// the southern hemisphere as in Mount::calculateRAandDECSteppers). OAM/OAE shift their home RA by 6h
+// (Mount::setHome), so the delta to home is -ha - 6 there; on the OAT it is -ha.
+SlewGeometry atHourAngle(float ha, float homeShiftHours, bool northernHemisphere = true)
 {
     float delta = -ha - homeShiftHours;
     while (delta > 12.0f)
@@ -147,8 +148,8 @@ SlewGeometry atHourAngle(float ha, float homeShiftHours)
     while (delta < -12.0f)
         delta += 24.0f;
     SlewGeometry geo = makeGeo(delta, 45.0f, delta);
-    geo.raLimitL     = -5.0f;
-    geo.raLimitR     = 7.0f;
+    geo.raLimitL     = northernHemisphere ? -5.0f : -7.0f;
+    geo.raLimitR     = northernHemisphere ? 7.0f : 5.0f;
     return geo;
 }
 }  // namespace
@@ -199,6 +200,28 @@ TEST(PierSideTest, OamOaeSlewLikeAGermanEquatorial)
     for (float ha : {-0.5f, 0.5f, 3.0f, 5.5f})
     {
         EXPECT_EQ(PierSide::East, sideAfterSlew(atHourAngle(ha, 6.0f), MountGeometry::GermanEquatorial)) << "HA " << ha;
+    }
+}
+
+TEST(PierSideTest, SouthernHemisphereLimitsKeepSameAscomSides)
+{
+    // OAT in the southern hemisphere: direct covers HA in [-5h, +7h], flipped beyond.
+    for (float ha : {-4.0f, -0.5f, 0.5f, 6.0f})
+    {
+        EXPECT_EQ(PierSide::East, sideAfterSlew(atHourAngle(ha, 0.0f, false), MountGeometry::Tracker)) << "HA " << ha;
+    }
+    EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(-6.0f, 0.0f, false), MountGeometry::Tracker));
+    EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(8.0f, 0.0f, false), MountGeometry::Tracker));
+
+    // OAM/OAE in the southern hemisphere: RA limits swap to [-7h, +5h], so the switch moves to HA = +1h
+    // (1h after the meridian), while east targets still report pierWest and west targets pierEast.
+    for (float ha : {-8.0f, -4.0f, -0.5f, 0.5f})
+    {
+        EXPECT_EQ(PierSide::West, sideAfterSlew(atHourAngle(ha, 6.0f, false), MountGeometry::GermanEquatorial)) << "HA " << ha;
+    }
+    for (float ha : {1.5f, 3.0f, 5.5f})
+    {
+        EXPECT_EQ(PierSide::East, sideAfterSlew(atHourAngle(ha, 6.0f, false), MountGeometry::GermanEquatorial)) << "HA " << ha;
     }
 }
 

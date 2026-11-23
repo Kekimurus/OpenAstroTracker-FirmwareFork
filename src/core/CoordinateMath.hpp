@@ -61,7 +61,8 @@ enum class MountGeometry
     Tracker,
     /// OAM, OAE: home RA is shifted by 6h, so the mount works as a German equatorial: the direct solution is
     /// used east of the meridian (OTA west of the pier, observing east: pierWest) and the flipped one west of it
-    /// (pierEast). With the default RA limits the switch happens about 1h before the meridian.
+    /// (pierEast). With the default RA limits the switch happens about 1h before the meridian in the northern
+    /// hemisphere (and about 1h after the meridian in the southern hemisphere).
     GermanEquatorial,
 };
 
